@@ -1,0 +1,49 @@
+{
+  "name": "mqtt-react-hooks",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "homepage": "https://github.com/jobadro/mqtt-react-hooks#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jobadro/mqtt-react-hooks.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jobadro/mqtt-react-hooks/issues"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "dependencies": {
+    "mqtt": "^5.10.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.8",
+    "tsup": "^8.0.1",
+    "typescript": "^5.6.2"
+  },
+  "scripts": {
+    "build": "tsup src/index.tsx --dts --format cjs,esm --sourcemap",
+    "prepare": "pnpm build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
+

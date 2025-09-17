@@ -1,0 +1,26 @@
+﻿{
+  "name": "mqtt-react-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r --filter ./packages/* run build",
+    "dev": "pnpm -C apps/example dev",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "echo 'no lint configured'"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jobadro/mqtt-react-hooks.git"
+  },
+  "homepage": "https://github.com/jobadro/mqtt-react-hooks#readme",
+  "bugs": {
+    "url": "https://github.com/jobadro/mqtt-react-hooks/issues"
+  }
+}
