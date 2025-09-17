@@ -1,0 +1,46 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Build library
+        run: pnpm -C packages/mqtt-react-hooks build
+
+      - name: Set package version from tag
+        working-directory: packages/mqtt-react-hooks
+        run: |
+          TAG=${GITHUB_REF_NAME#v}
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version='${TAG}';fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
+
+      - name: Publish to npm
+        working-directory: packages/mqtt-react-hooks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+
+
