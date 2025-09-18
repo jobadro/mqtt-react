@@ -1,3 +1,14 @@
+/**
+ * @module mqtt-react-hooks
+ *
+ * Module exports:
+ * - {@link MqttProvider}
+ * - {@link useMqttClient}
+ * - {@link useMqttConnectionStatus}
+ * - {@link useMqttPublish}
+ * - {@link useMqttSubscription}
+ * - Types: {@link MqttUrl}, {@link MqttConnectionStatus}, {@link QoSLevel}, {@link PublishOptions}, {@link SubscriptionOptions}
+ */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import mqtt from 'mqtt';
 import type { MqttClient, IClientOptions } from 'mqtt';
@@ -7,6 +18,16 @@ export type MqttUrl = string;
 /** High-level connection state emitted by the provider. */
 export type MqttConnectionStatus = 'offline' | 'connecting' | 'online' | 'reconnecting' | 'error';
 export type QoSLevel = 0 | 1 | 2;
+
+/** Serialization modes for publishing payloads. */
+export enum SerializationMode {
+  /** Default behavior: stringify objects/arrays/null; primitives stay plain text */
+  Auto = 'auto',
+  /** Never stringify; non-binary values coerced with String() */
+  String = 'string',
+  /** Force stringify any non-binary value (including primitives). Binary is decoded to UTF-8 then stringified */
+  Json = 'json'
+}
 
 /**
  * Provider that creates and manages a shared MQTT client instance via context.
@@ -111,6 +132,8 @@ export interface PublishOptions {
   /** Additional MQTT 5 properties (forwarded) */
   // eslint-disable-next-line @typescript-eslint/ban-types
   properties?: Record<string, unknown>;
+  /** JSON handling mode for non-binary payloads (default: Default). */
+  serializationMode?: SerializationMode;
 }
 
 /**
@@ -126,7 +149,7 @@ export function useMqttPublish() {
   const client = useMqttClient();
   const ctx = useContext(MqttContext);
   return useCallback(
-    (topic: string, payload: string | Buffer | Uint8Array, options?: PublishOptions) => {
+    (topic: string, payload: unknown, options?: PublishOptions) => {
       if (!client) throw new Error('MQTT client not ready');
       // Inject a publisherId marker (MQTT v5 userProperties) to enable self-filtering downstream
       const mergedOptions: any = { ...(options || {}) };
@@ -135,16 +158,52 @@ export function useMqttPublish() {
       if (ctx?.publisherId) userProperties.publisherId = ctx.publisherId;
       properties.userProperties = userProperties;
       mergedOptions.properties = properties;
+      // Normalize payload with optional auto JSON
+      let normalized: string | Uint8Array | Buffer;
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - Buffer runtime check
+      const isBuffer = typeof Buffer !== 'undefined' && typeof Buffer.isBuffer === 'function' && Buffer.isBuffer(payload);
+      const isUint8 = payload instanceof Uint8Array;
+
+      const mode: SerializationMode = mergedOptions.serializationMode ?? SerializationMode.Auto;
+      if (mode === SerializationMode.Json) {
+        // Force JSON for any value. If binary, decode to UTF-8 string first then JSON.stringify.
+        if (isUint8 || isBuffer) {
+          // Normalize to Uint8Array view
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          const bytes: Uint8Array = isUint8 ? (payload as Uint8Array) : new Uint8Array(payload as any);
+          const text = new TextDecoder().decode(bytes);
+          normalized = JSON.stringify(text);
+        } else {
+          normalized = JSON.stringify(payload);
+        }
+      } else if (isUint8 || isBuffer) {
+        // Keep binary as-is when not forcing JSON
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        normalized = payload as Uint8Array | Buffer;
+      } else if (typeof payload === 'string') {
+        normalized = payload;
+      } else if (typeof payload === 'number' || typeof payload === 'boolean' || typeof payload === 'bigint') {
+        // Do not JSON-encode primitives when not forcing
+        normalized = String(payload);
+      } else if (mode === SerializationMode.Auto) {
+        // autoJson true: JSON for objects/arrays/null
+        normalized = JSON.stringify(payload);
+      } else {
+        normalized = String(payload);
+      }
       // Track locally for brokers without MQTT v5 support
       try {
-        const bytes: Uint8Array = typeof payload === 'string' ? new TextEncoder().encode(payload) : (payload as any instanceof Uint8Array ? (payload as Uint8Array) : new Uint8Array(payload as any));
+        const bytes: Uint8Array = typeof normalized === 'string' ? new TextEncoder().encode(normalized) : (normalized as any instanceof Uint8Array ? (normalized as Uint8Array) : new Uint8Array(normalized as any));
         const hash = btoa(String.fromCharCode(...bytes.slice(0, 512)));
         const now = Date.now();
         ctx?.recentSelfMessages.current.push({ topic, hash, ts: now });
         // prune > 7s old or keep last 100 entries
         ctx && (ctx.recentSelfMessages.current = ctx.recentSelfMessages.current.filter(m => now - m.ts < 7000).slice(-100));
       } catch {}
-      client.publish(topic, payload as any, mergedOptions);
+      client.publish(topic, normalized as any, mergedOptions);
     },
     [client]
   );
@@ -162,6 +221,18 @@ export interface SubscriptionOptions {
   excludeSelf?: boolean;
   /** Suppression window for fallback filtering (ms). Default: 100. */
   selfWindowMs?: number;
+  /**
+   * Optional callback invoked for every matched message after parsing.
+   * Useful for streaming handling without relying on the returned last value.
+   */
+  onMessage?: (value: unknown, topic?: string, raw?: Uint8Array, packet?: any) => void;
+  /**
+   * JSON handling mode when no custom parser is supplied.
+   * - Auto (default): attempt JSON.parse of UTF-8 text; fallback to string
+   * - String: never JSON.parse; always return string
+   * - Json: always attempt JSON.parse; fallback to string if it fails
+   */
+  serializationMode?: SerializationMode;
 }
 
 /**
@@ -177,6 +248,9 @@ export interface SubscriptionOptions {
  *
  * @returns The most recent parsed message of type `T` (or `null` if none received yet).
  */
+export function useMqttSubscription<T>(topic: string | string[], options: SubscriptionOptions | undefined, parser: (message: Uint8Array) => T): T | null;
+export function useMqttSubscription(topic: string | string[], options: Omit<SubscriptionOptions, 'serializationMode'> & { serializationMode: SerializationMode.String }): string | null;
+export function useMqttSubscription(topic: string | string[], options?: SubscriptionOptions): unknown | string | null;
 export function useMqttSubscription<T = string>(topic: string | string[], options?: SubscriptionOptions, parser?: (message: Uint8Array) => T) {
   const client = useMqttClient();
   const ctx = useContext(MqttContext);
@@ -206,8 +280,23 @@ export function useMqttSubscription<T = string>(topic: string | string[], option
           } catch {}
         }
         const bytes = new Uint8Array(payload);
-        const value = parser ? parser(bytes) : (new TextDecoder().decode(bytes) as unknown as T);
-        setMessage(value);
+        let parsed: unknown;
+        if (parser) {
+          parsed = parser(bytes);
+        } else {
+          const text = new TextDecoder().decode(bytes);
+          const mode: SerializationMode = options?.serializationMode ?? SerializationMode.Auto;
+          if (mode === SerializationMode.String) {
+            parsed = text;
+          } else {
+            // Default and Force behave the same here: best-effort JSON parse
+            try { parsed = JSON.parse(text); } catch { parsed = text; }
+          }
+        }
+        if (options?.onMessage) {
+          try { (options.onMessage as (v: T, t?: string, r?: Uint8Array, p?: any) => void)(parsed as T, msgTopic, bytes, packet); } catch {}
+        }
+        setMessage(parsed as T);
       }
     };
 
