@@ -4,7 +4,7 @@ import { MqttProvider, useMqttConnectionStatus, useMqttPublish, useMqttSubscript
 const Demo = () => {
   const status = useMqttConnectionStatus();
   const publish = useMqttPublish();
-  const lastEcho = useMqttSubscription<string>('test/echo', { excludeSelf: true });
+  const lastEcho = useMqttSubscription<string>('test/echo', { excludeSelf: false });
   const [text, setText] = useState('hello');
 
   return (
@@ -26,7 +26,7 @@ const Demo = () => {
 export const App = () => {
   const url = useMemo(() => {
     // Adjust to your broker; many browsers require secure wss when page is https
-    return (import.meta.env.VITE_MQTT_URL as string) || 'ws://10.43.53.2:8080';
+    return (import.meta.env.VITE_MQTT_URL as string) || 'ws://test.mosquitto.org:8080/mqtt';
   }, []);
 
   return (

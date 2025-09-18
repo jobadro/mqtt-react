@@ -46,6 +46,7 @@ function Demo() {
 ```
 
 Notes:
+
 - Browser requires MQTT over WebSockets (`ws://` or `wss://`).
 - `excludeSelf` uses MQTT v5 `noLocal` where available and falls back to local filtering.
 

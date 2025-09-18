@@ -39,6 +39,16 @@ jobs:
           TAG=${GITHUB_REF_NAME#v}
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version='${TAG}';fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
 
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Auth check
+        run: npm whoami
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish to npm
         working-directory: packages/mqtt-react-hooks
         env:

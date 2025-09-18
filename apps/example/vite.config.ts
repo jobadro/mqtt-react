@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      'mqtt-react-hooks': path.resolve(__dirname, '../../packages/mqtt-react-hooks/src')
+      'mqtt-react-hooks': path.resolve(__dirname, '../../packages/mqtt-react-hooks/dist/index.js')
     }
   },
   server: { port: 5173 }
