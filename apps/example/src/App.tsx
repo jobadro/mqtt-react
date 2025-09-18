@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MqttProvider, useMqttConnectionStatus, useMqttPublish, useMqttSubscription } from 'mqtt-react-hooks';
+import { MqttProvider, useMqttConnectionStatus, useMqttPublish, useMqttSubscription, SerializationMode } from 'mqtt-react-hooks';
 
 const Demo = () => {
   const status = useMqttConnectionStatus();
   const publish = useMqttPublish();
-  const lastEcho = useMqttSubscription('test/echo', { excludeSelf: false });
+  const lastEcho = useMqttSubscription('test/echo', { excludeSelf: false, serializationMode: SerializationMode.String });
   const [text, setText] = useState('hello');
 
   return (
