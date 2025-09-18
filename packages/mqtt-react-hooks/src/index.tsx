@@ -132,7 +132,12 @@ export interface PublishOptions {
   /** Additional MQTT 5 properties (forwarded) */
   // eslint-disable-next-line @typescript-eslint/ban-types
   properties?: Record<string, unknown>;
-  /** JSON handling mode for non-binary payloads (default: Default). */
+  /**
+   * JSON serialization mode for non-binary payloads (default: Auto).
+   * - Auto: stringify objects/arrays/null; primitives as plain text; binary unchanged
+   * - String: never stringify; non-binary coerced with String()
+   * - Json: force stringify any non-binary value; binary decoded to UTF-8 then stringified
+   */
   serializationMode?: SerializationMode;
 }
 
@@ -238,15 +243,21 @@ export interface SubscriptionOptions {
 /**
  * Subscribe to one or more topics and receive the last payload.
  *
- * @typeParam T - The parsed message type returned by the hook (default: string).
+ * Overloads:
+ * - With `parser`: returns `T | null`.
+ * - With `serializationMode: SerializationMode.String` and no `parser`: returns `string | null`.
+ * - With other modes and no `parser`: returns `unknown | string | null` (best-effort JSON parse).
+ *
+ * @typeParam T - The parsed message type when a custom `parser` is provided.
  * @param topic - A topic string or an array of topics to subscribe to.
  * @param options - Subscription behavior. See {@link SubscriptionOptions}.
  * @param options.qos - Requested QoS level (0, 1, or 2).
  * @param options.excludeSelf - If true, avoid receiving messages published by this provider instance. Uses MQTT 5 `noLocal` when available; otherwise falls back to a local suppression window.
  * @param options.selfWindowMs - Suppression window in milliseconds for the fallback self-filter (default 100ms).
- * @param parser - Optional function to convert the raw bytes (Uint8Array) into a domain value of type `T`. Defaults to UTF-8 decoded string.
+ * @param options.serializationMode - Parsing behavior for the default decoder when no `parser` is given.
+ * @param parser - Optional function to convert the raw bytes (Uint8Array) into a domain value of type `T`.
  *
- * @returns The most recent parsed message of type `T` (or `null` if none received yet).
+ * @returns See overloads above.
  */
 export function useMqttSubscription<T>(topic: string | string[], options: SubscriptionOptions | undefined, parser: (message: Uint8Array) => T): T | null;
 export function useMqttSubscription(topic: string | string[], options: Omit<SubscriptionOptions, 'serializationMode'> & { serializationMode: SerializationMode.String }): string | null;

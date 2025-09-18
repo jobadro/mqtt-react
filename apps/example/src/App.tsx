@@ -4,7 +4,7 @@ import { MqttProvider, useMqttConnectionStatus, useMqttPublish, useMqttSubscript
 const Demo = () => {
   const status = useMqttConnectionStatus();
   const publish = useMqttPublish();
-  const lastEcho = useMqttSubscription<string>('test/echo', { excludeSelf: false });
+  const lastEcho = useMqttSubscription('test/echo', { excludeSelf: false });
   const [text, setText] = useState('hello');
 
   return (
