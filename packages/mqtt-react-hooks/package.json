@@ -1,5 +1,5 @@
 {
-  "name": "mqtt-react-hooks",
+  "name": "@jobadro/mqtt-react-hooks",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.cjs",
@@ -7,6 +7,11 @@
   "types": "dist/index.d.ts",
   "license": "MIT",
   "homepage": "https://github.com/jobadro/mqtt-react-hooks#readme",
+  "keywords": [
+    "mqtt",
+    "react",
+    "hooks"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jobadro/mqtt-react-hooks.git"
